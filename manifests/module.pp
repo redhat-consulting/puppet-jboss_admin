@@ -35,21 +35,31 @@ define jboss_admin::module (
   $namespace_path   = regsubst($namespace, '\.', '/', 'G')
   $dir_path         = "${module_path}/${namespace_path}/main"
 
-
   File {
     owner => $server_user,
     group => $server_group
   }
 
-  # create parent directories to module
-  # have to use an exec here because multiple modules can have
-  # the same parent directories so the File resource clash
-  exec { "Create Parent Directories: ${title}":
-    path    => ['/bin','/usr/bin', '/sbin'],
-    command => "/bin/mkdir -p ${module_path}/${namespace_path}",
-    unless  => "test -d ${module_path}/${namespace_path}",
-    before  => [File[$dir_path],],
-  }
+  # collect all of the namespace parent directories
+  $_namespace_parent_dirs_str = inline_template("<%=
+    parent_dirs = []
+    parent_dir  = \"${namespace_path}\"
+    while parent_dir != '/' && parent_dir != '.'
+      parent_dirs.push(\"${module_path}/\" + parent_dir)
+      parent_dir = File.dirname(parent_dir)
+    end
+    parent_dirs.to_yaml
+  %>")
+  $_namespace_parent_dirs = parseyaml($_namespace_parent_dirs_str)
+
+  # create namespace parent directories to module
+  # NOTE: use ensure_resource because mutliple modules can have the
+  #       same parent directories so this prevents duplicate resource declaration
+  ensure_resource('file', $_namespace_parent_dirs, {
+    'ensure' => 'directory',
+    'owner'  => $server_user,
+    'group'  => $server_group
+  })
   
   # if the module contents is a directory
   # else if is single file, such as a jar
