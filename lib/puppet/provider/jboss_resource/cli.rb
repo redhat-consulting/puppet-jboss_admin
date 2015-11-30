@@ -94,7 +94,8 @@ Puppet::Type.type(:jboss_resource).provide(:cli) do
           }
 
           result = execute_cli get_server(resource), commands, false, true
-          raise "Failed setting attribute, #{result['failure-description']}" unless result['outcome'] == 'success'  
+          raise "Failed setting attribute, #{result['failure-description']}" unless result['outcome'] == 'success'
+          return
         end
 
         # sleep before next attempt
